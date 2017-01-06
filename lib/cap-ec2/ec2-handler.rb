@@ -93,6 +93,8 @@ module CapEC2
     private
 
     def instance_has_tag?(instance, key, value)
+      instance.tags.select{|tag| tag.key == key}.first != nil or return false
+      
       (instance.tags.select{|tag| tag.key == key}.first.value || '').split(',').map(&:strip).include?(value.to_s)
     end
 
