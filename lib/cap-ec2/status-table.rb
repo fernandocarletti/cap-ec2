@@ -1,12 +1,12 @@
 module CapEC2
   class StatusTable
     include CapEC2::Utils
-    
+
     def initialize(instances)
       @instances = instances
       output
     end
-    
+
     def header_row
       [
         bold("Num"),
@@ -19,7 +19,7 @@ module CapEC2
         bold("Stages")
       ]
     end
-    
+
     def output
       table = Terminal::Table.new(
         :style => {
@@ -38,13 +38,13 @@ module CapEC2
     def instance_to_row(instance, index)
       [
         sprintf("%02d:", index),
-        green(instance.tags["Name"] || ''),
+        green(instance.tags.select{|tag| tag.key == "Name"}.first.value || ''),
         red(instance.id),
         cyan(instance.instance_type),
         bold(blue(CapEC2::Utils.contact_point(instance))),
-        magenta(instance.availability_zone),
-        yellow(instance.tags[roles_tag]),
-        yellow(instance.tags[stages_tag])
+        magenta(instance.placement.availability_zone),
+        yellow(instance.tags.select{|tag| tag.key == roles_tag}.first.value),
+        yellow(instance.tags.select{|tag| tag.key == stages_tag}.first.value)
       ]
     end
 

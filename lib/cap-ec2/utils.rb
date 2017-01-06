@@ -40,6 +40,7 @@ module CapEC2
       if config_location && File.exists?(config_location)
         config = YAML.load_file fetch(:ec2_config)
         if config
+          set :ec2_application, config['application'] if config['application']
           set :ec2_project_tag, config['project_tag'] if config['project_tag']
           set :ec2_roles_tag, config['roles_tag'] if config['roles_tag']
           set :ec2_stages_tag, config['stages_tag'] if config['stages_tag']

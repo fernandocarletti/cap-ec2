@@ -12,12 +12,11 @@ module CapEC2
     end
 
     def ec2_connect(region=nil)
-      AWS.start_memoizing
-      AWS::EC2.new(
-        access_key_id: fetch(:ec2_access_key_id),
-        secret_access_key: fetch(:ec2_secret_access_key),
-        region: region
-      )
+      Aws.config.update({
+        credentials: Aws::Credentials.new(fetch(:ec2_access_key_id) || ENV.fetch('AWS_ACCESS_KEY_ID'), fetch(:ec2_secret_access_key) || ENV.fetch('AWS_SECRET_ACCESS_KEY'))
+      })
+
+      return Aws::EC2::Resource.new(region: region)
     end
 
     def status_table
@@ -51,7 +50,7 @@ module CapEC2
     end
 
     def application
-      Capistrano::Configuration.env.fetch(:application).to_s
+      fetch(:ec2_application) || Capistrano::Configuration.env.fetch(:application).to_s
     end
 
     def tag(tag_name)
@@ -60,18 +59,29 @@ module CapEC2
 
     def get_servers_for_role(role)
       servers = []
+
+      filters = [
+        {
+          name: tag(project_tag),
+          values: ["*#{application}*"]
+        },
+        {
+          name: 'instance-state-name',
+          values: ['running']
+        },
+      ]
+
       @ec2.each do |_, ec2|
-        instances = ec2.instances
-          .filter(tag(project_tag), "*#{application}*")
-          .filter('instance-state-name', 'running')
-        servers << instances.select do |i|
+        ec2.instances({ filters: filters }).each do |i|
           instance_has_tag?(i, roles_tag, role) &&
             instance_has_tag?(i, stages_tag, stage) &&
             instance_has_tag?(i, project_tag, application) &&
-            (fetch(:ec2_filter_by_status_ok?) ? instance_status_ok?(i) : true)
+            (fetch(:ec2_filter_by_status_ok?) ? instance_status_ok?(i) : true) &&
+            servers << i
         end
       end
-      servers.flatten.sort_by {|s| s.tags["Name"] || ''}
+
+      servers.flatten.sort_by {|s| s.tags.select{|tag| tag.key == "Name"}.first.value || ''}
     end
 
     def get_server(instance_id)
@@ -83,7 +93,7 @@ module CapEC2
     private
 
     def instance_has_tag?(instance, key, value)
-      (instance.tags[key] || '').split(',').map(&:strip).include?(value.to_s)
+      (instance.tags.select{|tag| tag.key == key}.first.value || '').split(',').map(&:strip).include?(value.to_s)
     end
 
     def instance_status_ok?(instance)
