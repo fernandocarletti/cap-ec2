@@ -85,9 +85,9 @@ module CapEC2
     end
 
     def get_server(instance_id)
-      @ec2.reduce([]) do |acc, (_, ec2)|
-        acc << ec2.instances[instance_id]
-      end.flatten.first
+      @ec2.each do |region, ec2|
+        return ec2.instances({instance_ids: [instance_id]}).first
+      end
     end
 
     private
